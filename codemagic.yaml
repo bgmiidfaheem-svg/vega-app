@@ -1,13 +1,64 @@
 workflows:
-  expo-app:
-    name: Expo Android Build
+  android-preview:
+    name: Expo Android Preview (APK)
+    instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
-      node: latest
+      # Create this group in Codemagic UI and put EXPO_TOKEN inside it as a secure variable
+      groups:
+        - expo_secrets
+      vars:
+        EAS_PROFILE: "preview"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
+          source: true
     scripts:
-      - npm install -g expo-cli eas-cli
-      - npm install
-      - eas build -p android --profile preview --non-interactive
+      - name: Install dependencies
+        script: |
+          npm ci
+      - name: Verify Expo auth (uses EXPO_TOKEN from env)
+        script: |
+          npx eas-cli whoami
+      - name: Build Android APK with EAS (non-interactive)
+        script: |
+          npx eas-cli build -p android --profile "$EAS_PROFILE" --non-interactive
     artifacts:
+      # EAS is a remote build; Codemagic will still archive any local artifacts if present
+      - dist/**/*.apk
       - build/**/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - you@example.com
+
+  android-production:
+    name: Expo Android Production (AAB)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      groups:
+        - expo_secrets
+      vars:
+        EAS_PROFILE: "production"
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+      - name: Verify Expo auth (uses EXPO_TOKEN from env)
+        script: |
+          npx eas-cli whoami
+      - name: Build Android App Bundle with EAS (non-interactive)
+        script: |
+          npx eas-cli build -p android --profile "$EAS_PROFILE" --non-interactive
+    artifacts:
+      - dist/**/*.aab
       - build/**/outputs/**/*.aab
+    publishing:
+      email:
+        recipients:
+          - you@example.com
+          
